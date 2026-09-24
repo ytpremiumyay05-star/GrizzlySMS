@@ -3,13 +3,12 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, CopyTextBu
 import requests
 import threading
 import time
-from flask import Flask, request
+from flask import Flask
 import os
 
 # Bot Config
 BOT_TOKEN = "8668990603:AAHMkDqp_NwpuhVRrFnI6qYHIr2HoiB2NuE"
 ADMIN_ID = 7266067201
-WEBHOOK_URL = "https://grizzlysms-58tg.onrender.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
@@ -18,7 +17,7 @@ app = Flask(__name__)
 maintenance_mode = False
 user_api_keys = {}
 
-# Checker API Config
+# Checker API Config[cite: 1]
 CHECKER_URL = "http://api.agbots.site:8080/check/"
 CHECKER_AUTH = "user8354"
 CHECKER_API_KEY = "SIGUzg7Xf7euGs8B"
@@ -55,7 +54,6 @@ def check_tg_number(phone_number):
     return "❓"
 
 def wait_for_otp(chat_id, api_key, activation_id, phone_number):
-    # Grizzly SMS getStatus API
     url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=getStatus&id={activation_id}"
     
     for _ in range(60): 
@@ -130,7 +128,8 @@ def buy_command(message):
         bot.send_message(message.chat.id, "Age /api command diye API key set koro.")
         return
         
-    # Grizzly SMS getNumber API optimized with specific constraints
+    bot.send_message(message.chat.id, "Number checking... please wait ⏳")
+    
     buy_url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=getNumber&service=tg&country=39&maxPrice=0.12"
     
     try:
@@ -153,31 +152,24 @@ def buy_command(message):
     except Exception:
         bot.send_message(message.chat.id, "API theke response ashte problem hoyeche.")
 
-# --- Flask Webhook Config ---
-@app.route(f'/{BOT_TOKEN}', methods=['POST'])
-def webhook():
-    if request.headers.get('content-type') == 'application/json':
-        json_string = request.get_data().decode('utf-8')
-        update = telebot.types.Update.de_json(json_string)
-        bot.process_new_updates([update])
-        return '', 200
-    else:
-        return 'Error', 403
 
-@app.route('/', methods=['GET'])
+# --- Render Dummy Server (To keep the bot alive) ---
+@app.route('/')
 def index():
-    return 'Bot is running on Webhook!', 200
+    return "Bot is running on Polling mode!"
 
-# === RENDER GUNICORN WEBHOOK FIX ===
-# Gunicorn start hobar shathe shathei nicher ei code tukur maddhome Webhook set hoye jabe
-try:
-    bot.remove_webhook()
-    time.sleep(1)
-    bot.set_webhook(url=f"{WEBHOOK_URL}/{BOT_TOKEN}", drop_pending_updates=True)
-    print(f"Webhook set successfully to {WEBHOOK_URL}")
-except Exception as e:
-    print(f"Webhook fail: {e}")
+def run_server():
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    # Render er dummy port bind korar jonno thread e flask run kora hocche
+    threading.Thread(target=run_server, daemon=True).start()
+    
+    print("Webhook remove kora hocche...")
+    bot.remove_webhook()
+    time.sleep(1)
+    
+    print("Bot Polling start hocche...")
+    # Polling mode e bot chalano hocche (skip_pending=True dile ager jome thaka jamela clear hoye jabe)
+    bot.infinity_polling(skip_pending=True)
