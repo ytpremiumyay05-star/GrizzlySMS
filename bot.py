@@ -23,23 +23,24 @@ CHECKER_URL = "http://api.agbots.site:8080/check/"
 CHECKER_AUTH = "user8354"
 CHECKER_API_KEY = "SIGUzg7Xf7euGs8B"
 
-# Ekhane aro options add kora hoyeche
+# Ekhane Telegram er original API response word gulo add kora hoyeche
 STATUS_EMOJIS = {
+    "unoccupied": "🟢",
     "fresh": "🟢",
     "clean": "🟢",
     "ok": "🟢",
-    "good": "🟢",
     "banned": "🔴",
     "flood": "🔴",
+    "occupied": "🟡",
     "registered": "🟡",
     "used": "🟡",
-    "active": "🟡",
     "locked": "🔒",
     "2fa": "🔐",
     "password": "🔐"
 }
 
 def check_tg_number(phone_number):
+    # Number er aage + na thakle jure dewa hocche
     if not phone_number.startswith("+"):
         query_number = "+" + phone_number
     else:
@@ -58,6 +59,7 @@ def check_tg_number(phone_number):
             if str(data.get("status")) == "200":
                 result_obj = data.get("result_obj", {})
                 
+                # Result theke + soho ba chhara jekono vabei match korar chesta
                 raw_status = result_obj.get(query_number) or result_obj.get(query_number.replace("+", "")) or "unknown"
                 status_str = str(raw_status).lower().strip()
                 
@@ -66,13 +68,12 @@ def check_tg_number(phone_number):
                     if key in status_str:
                         return emoji
                         
-                # Jodi match na hoy, tahole ashol text ta show korbe (e.g., ⚠️ Error ba ⚠️ Flood)
                 if raw_status != "unknown":
                     return f"⚠️ {raw_status}"
     except Exception:
-        return "❓ API Timeout"
+        pass
     
-    return "❓ Unknown"
+    return "❓"
 
 def wait_for_otp(chat_id, user_id, api_key, activation_id, phone_number):
     url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=getStatus&id={activation_id}"
