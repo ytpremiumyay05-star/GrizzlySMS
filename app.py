@@ -9,7 +9,7 @@ import os
 # Bot Config
 BOT_TOKEN = "8668990603:AAHMkDqp_NwpuhVRrFnI6qYHIr2HoiB2NuE"
 ADMIN_ID = 7266067201
-WEBHOOK_URL = "https://grizzlysms-8ex5.onrender.com"
+WEBHOOK_URL = "https://grizzlysms-58tg.onrender.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 app = Flask(__name__)
