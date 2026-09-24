@@ -17,7 +17,7 @@ app = Flask(__name__)
 maintenance_mode = False
 user_api_keys = {}
 
-# Checker API Config[cite: 1]
+# Checker API Config
 CHECKER_URL = "http://api.agbots.site:8080/check/"
 CHECKER_AUTH = "user8354"
 CHECKER_API_KEY = "SIGUzg7Xf7euGs8B"
@@ -128,32 +128,59 @@ def buy_command(message):
         bot.send_message(message.chat.id, "Age /api command diye API key set koro.")
         return
         
-    bot.send_message(message.chat.id, "Number checking... please wait ⏳")
-    
-    buy_url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=getNumber&service=tg&country=39&maxPrice=0.12"
-    
-    try:
-        res = requests.get(buy_url, timeout=30)
-        response_text = res.text
+    msg = bot.send_message(message.chat.id, "Kotogula number kinte chao? (Shudhu number type koro, jemon: 1, 5, 10)")
+    bot.register_next_step_handler(msg, process_buy_amount, api_key)
+
+def process_buy_amount(message, api_key):
+    if not message.text.isdigit():
+        bot.send_message(message.chat.id, "Tumi sothik number dao ni. Abar /buy type koro.")
+        return
         
-        if response_text.startswith("ACCESS_NUMBER"):
-            parts = response_text.split(":")
-            activation_id = parts[1]
-            phone_number = parts[2]
+    amount = int(message.text)
+    if amount <= 0:
+        bot.send_message(message.chat.id, "Amount 0 er theke beshi hote hobe.")
+        return
+        
+    if amount > 20: # Maximum limit 20 dewa holo
+        bot.send_message(message.chat.id, "Eksathe maximum 20 ta number kena jabe. Ami 20 ta number order korchi...")
+        amount = 20
+        
+    bot.send_message(message.chat.id, f"✅ {amount} ta number checking... please wait ⏳")
+    
+    buy_url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=getNumber&service=tg&country=33&maxPrice=0.12"
+    
+    for i in range(amount):
+        try:
+            res = requests.get(buy_url, timeout=30)
+            response_text = res.text
             
-            emoji_status = check_tg_number(phone_number)
-            bot.send_message(message.chat.id, f"{phone_number} {emoji_status}")
+            if response_text.startswith("ACCESS_NUMBER"):
+                parts = response_text.split(":")
+                activation_id = parts[1]
+                phone_number = parts[2]
+                
+                # Check status and send
+                emoji_status = check_tg_number(phone_number)
+                bot.send_message(message.chat.id, f"{phone_number} {emoji_status}")
+                
+                # Wait for OTP in background thread
+                threading.Thread(target=wait_for_otp, args=(message.chat.id, api_key, activation_id, phone_number)).start()
+                
+            else:
+                bot.send_message(message.chat.id, f"Number kena jayni: {response_text}")
+                
+                # Jodii balance sesh hoye jay ba number na thake, tahole loop ekhanei stop kore dibe
+                if response_text in ["NO_BALANCE", "NO_NUMBERS", "BAD_KEY"]:
+                    bot.send_message(message.chat.id, "⚠️ API Error er karone order stop kora holo.")
+                    break
+                    
+        except Exception:
+            bot.send_message(message.chat.id, "API theke response ashte problem hoyeche.")
+            break
             
-            threading.Thread(target=wait_for_otp, args=(message.chat.id, api_key, activation_id, phone_number)).start()
-            
-        else:
-            bot.send_message(message.chat.id, f"Number kena jayni: {response_text}")
-            
-    except Exception:
-        bot.send_message(message.chat.id, "API theke response ashte problem hoyeche.")
+        time.sleep(1) # Proti request er majhe 1 second gap jate API block na kore
 
-
-# --- Render Dummy Server (To keep the bot alive) ---
+# --- Render Dummy Server ---
 @app.route('/')
 def index():
     return "Bot is running on Polling mode!"
@@ -163,13 +190,9 @@ def run_server():
     app.run(host="0.0.0.0", port=port, debug=False, use_reloader=False)
 
 if __name__ == "__main__":
-    # Render er dummy port bind korar jonno thread e flask run kora hocche
     threading.Thread(target=run_server, daemon=True).start()
     
-    print("Webhook remove kora hocche...")
     bot.remove_webhook()
     time.sleep(1)
     
-    print("Bot Polling start hocche...")
-    # Polling mode e bot chalano hocche (skip_pending=True dile ager jome thaka jamela clear hoye jabe)
     bot.infinity_polling(skip_pending=True)
