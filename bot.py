@@ -23,12 +23,20 @@ CHECKER_URL = "http://api.agbots.site:8080/check/"
 CHECKER_AUTH = "user8354"
 CHECKER_API_KEY = "SIGUzg7Xf7euGs8B"
 
+# Ekhane aro options add kora hoyeche
 STATUS_EMOJIS = {
     "fresh": "🟢",
+    "clean": "🟢",
+    "ok": "🟢",
+    "good": "🟢",
     "banned": "🔴",
+    "flood": "🔴",
     "registered": "🟡",
+    "used": "🟡",
+    "active": "🟡",
     "locked": "🔒",
-    "2fa": "🔐"
+    "2fa": "🔐",
+    "password": "🔐"
 }
 
 def check_tg_number(phone_number):
@@ -53,13 +61,18 @@ def check_tg_number(phone_number):
                 raw_status = result_obj.get(query_number) or result_obj.get(query_number.replace("+", "")) or "unknown"
                 status_str = str(raw_status).lower().strip()
                 
+                # Check for matching emojis
                 for key, emoji in STATUS_EMOJIS.items():
                     if key in status_str:
                         return emoji
+                        
+                # Jodi match na hoy, tahole ashol text ta show korbe (e.g., ⚠️ Error ba ⚠️ Flood)
+                if raw_status != "unknown":
+                    return f"⚠️ {raw_status}"
     except Exception:
-        pass
+        return "❓ API Timeout"
     
-    return "❓"
+    return "❓ Unknown"
 
 def wait_for_otp(chat_id, user_id, api_key, activation_id, phone_number):
     url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=getStatus&id={activation_id}"
@@ -169,14 +182,12 @@ def active_command(message):
         bot.send_message(message.chat.id, "Tomar ekhon kono active order nei.")
         return
         
-    # Ekhon ar text list thakbe na, shudhu direction dewa hobe
     text = "🟢 **Tomar Active Number Gula:**\n*(Cancel korte nicher button e tap koro)*"
     markup = InlineKeyboardMarkup(row_width=1)
     
     for act_id, phone in list(orders.items()):
         markup.add(InlineKeyboardButton(text=f"Cancel {phone} ❌", callback_data=f"cancel_{act_id}_{phone}"))
         
-    # Jodi ekadhik order thake, tobe "Cancel All" button add hobe
     if len(orders) > 1:
         markup.add(InlineKeyboardButton(text="Cancel All ❌", callback_data="cancelall"))
         
@@ -198,7 +209,6 @@ def cancel_all_callback(call):
         
     bot.answer_callback_query(call.id, "Shob cancel kora hocche... Please wait ⏳")
     
-    # Loop chaliye shob order cancel kora hocche
     for act_id, phone in list(orders.items()):
         cancel_url = f"https://api.grizzlysms.com/stubs/handler_api.php?api_key={api_key}&action=setStatus&status=8&id={act_id}"
         try:
@@ -206,7 +216,6 @@ def cancel_all_callback(call):
         except Exception:
             pass
             
-    # Ek bare user er shob active order list theke faka kore dewa holo
     user_active_orders[user_id] = {}
     
     bot.edit_message_text("✅ Tomar shob active number eksathe cancel & refund kora hoyeche!", chat_id=call.message.chat.id, message_id=call.message.message_id)
